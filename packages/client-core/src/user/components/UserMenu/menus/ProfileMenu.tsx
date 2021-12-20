@@ -65,7 +65,7 @@ const ProfileMenu = (props: Props): any => {
   const authSettingState = useAdminAuthSettingState()
   const [authSetting] = authSettingState?.authSettings?.value || []
   const [authState, setAuthState] = useState(initialState)
-  const [walletAccount, setWalletAccount] = useState(undefined)
+  const [walletAccount, setWalletAccount] = useState('')
   const [currentChain, setCurrentChain] = useState(undefined)
   const [isConnected, setIsConnected] = useState(false)
 
@@ -152,7 +152,7 @@ const ProfileMenu = (props: Props): any => {
     const name = username.trim()
     if (!name) return
     if (selfUser.name.value.trim() !== name) {
-      AuthService.updateUsername(selfUser.id.value, name)
+      AuthService.updateUsername(selfUser.id.value as string, name)
     }
   }
   const handleInputChange = (e) => setEmailPhone(e.target.value)
@@ -192,7 +192,7 @@ const ProfileMenu = (props: Props): any => {
     const fm = new Fortmatic('pk_test_7350FF54E20EF62A')
     // let w: any = window
 
-    window.web3 = new Web3(fm.getProvider() as any)
+    ;(window as any).web3 = new Web3(fm.getProvider() as any)
 
     let isUserLoggedIn = await fm.user.isLoggedIn()
     // console.log(isUserLoggedIn) // false
@@ -202,7 +202,7 @@ const ProfileMenu = (props: Props): any => {
     }
 
     fm.user.login().then(() => {
-      web3.eth.getAccounts().then(console.log) // ['0x...']
+      ;(window as any).eth.getAccounts().then(console.log) // ['0x...']
     })
     // Request user login if needed, returns current user account address
     // web3.currentProvider.enable()
@@ -265,7 +265,7 @@ const ProfileMenu = (props: Props): any => {
 
   const handleShowId = () => {
     setShowUserId(!showUserId)
-    setUserIdState({ ...userIdState, value: selfUser.id.value })
+    setUserIdState({ ...userIdState, value: selfUser.id.value as string })
   }
 
   const handleClose = () => {
@@ -370,7 +370,7 @@ const ProfileMenu = (props: Props): any => {
               </Grid>
               <Grid item container xs={6} alignItems="flex-start" direction="column">
                 <Tooltip title="Show User ID" placement="right">
-                  <h2 size="small" className={styles.showUserId} onClick={handleShowId}>
+                  <h2 className={styles.showUserId} onClick={handleShowId}>
                     {showUserId ? t('user:usermenu.profile.hideUserId') : t('user:usermenu.profile.showUserId')}{' '}
                   </h2>
                 </Tooltip>
