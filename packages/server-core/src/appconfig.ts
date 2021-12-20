@@ -47,6 +47,7 @@ db.url =
   (testEnabled ? process.env.MYSQL_TEST_URL : process.env.MYSQL_URL) ||
   `mysql://${db.username}:${db.password}@${db.host}:${db.port}/${db.database}`
 
+console.log({ db })
 /**
  * Server / backend
  */

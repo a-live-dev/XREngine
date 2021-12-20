@@ -40,6 +40,7 @@
     "@mui/styles": "5.2.0",
     "@rollup/plugin-inject": "4.0.3",
     "@types/react": "17.0.36",
+    "@types/web3": "^1.2.2",
     "@xrengine/client-core": "^0.4.13",
     "@xrengine/common": "^0.4.13",
     "@xrengine/editor": "^0.4.13",
@@ -48,6 +49,7 @@
     "@xrengine/projects": "^0.4.13",
     "classnames": "2.3.1",
     "file-regex": "3.1.0",
+    "fortmatic": "^2.2.1",
     "i18next": "21.5.3",
     "i18next-browser-languagedetector": "6.1.2",
     "lodash": "4.17.21",
@@ -64,6 +66,7 @@
     "react-router-dom": "5.3.0",
     "sass": "1.43.4",
     "socket.io-client": "4.4.0",
+    "web3": "0.20",
     "webxr-native": "0.3.0",
     "yuka": "0.7.6"
   },

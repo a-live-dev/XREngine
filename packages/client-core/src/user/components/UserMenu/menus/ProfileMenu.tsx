@@ -8,6 +8,7 @@ import { AuthService } from '../../../services/AuthService'
 import React, { useEffect, useState } from 'react'
 import { useDispatch } from '../../../../store'
 import { FacebookIcon } from '../../../../common/components/Icons/FacebookIcon'
+import { MetamaskIcon } from '../../../../common/components/Icons/MetamaskIcon'
 import { GoogleIcon } from '../../../../common/components/Icons/GoogleIcon'
 import { LinkedInIcon } from '../../../../common/components/Icons/LinkedInIcon'
 import { TwitterIcon } from '../../../../common/components/Icons/TwitterIcon'
@@ -24,7 +25,8 @@ import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar'
 import { AuthSettingService } from '../../../../admin/services/Setting/AuthSettingService'
 import { useAdminAuthSettingState } from '../../../../admin/services/Setting/AuthSettingService'
 import { useHistory } from 'react-router-dom'
-
+import Fortmatic from 'fortmatic'
+import Web3 from 'web3'
 interface Props {
   changeActiveMenu?: any
   setProfileMenuOpen?: any
@@ -41,7 +43,8 @@ const initialState = {
   linkedin: false,
   twitter: false,
   smsMagicLink: false,
-  emailMagicLink: false
+  emailMagicLink: false,
+  metamask: true
 }
 
 const ProfileMenu = (props: Props): any => {
@@ -62,7 +65,26 @@ const ProfileMenu = (props: Props): any => {
   const authSettingState = useAdminAuthSettingState()
   const [authSetting] = authSettingState?.authSettings?.value || []
   const [authState, setAuthState] = useState(initialState)
+  const [walletAccount, setWalletAccount] = useState(undefined)
+  const [currentChain, setCurrentChain] = useState(undefined)
+  const [isConnected, setIsConnected] = useState(false)
 
+  useEffect(() => {
+    setIsConnected(walletAccount ? true : false)
+  }, [walletAccount])
+
+  useEffect(() => {
+    if (typeof (window as any).ethereum != 'undefined') {
+      ;(window as any).ethereum.on('accountsChanged', (accounts) => {
+        console.log('Account changed: ', accounts[0])
+        setWalletAccount(accounts[0])
+      })
+      ;(window as any).ethereum.on('chainChanged', (chainId) => {
+        console.log('Chain Id changed:', chainId)
+        setCurrentChain(chainId)
+      })
+    }
+  }, [])
   useEffect(() => {
     !authSetting && AuthSettingService.fetchAuthSetting()
   }, [])
@@ -81,6 +103,20 @@ const ProfileMenu = (props: Props): any => {
 
   let type = ''
 
+  const handleConnectWallet = async () => {
+    console.log('Connecting Metamask...')
+    const provider = (window as any).ethereum
+    const accounts = await provider.request({ method: 'eth_requestAccounts' })
+    const account = accounts[0]
+    console.log('Account:', account)
+    setWalletAccount(account)
+  }
+
+  const handleDisconnect = async () => {
+    console.log('Disconnecting Metamask')
+    setIsConnected(false)
+    setWalletAccount('')
+  }
   const loadCredentialHandler = async () => {
     try {
       const mediator = `${Config.publicRuntimeConfig.mediatorServer}/mediator?origin=${encodeURIComponent(
@@ -152,8 +188,55 @@ const ProfileMenu = (props: Props): any => {
     await AuthService.logoutUser()
     // window.location.reload()
   }
-
   const handleWalletLoginClick = async (e) => {
+    const fm = new Fortmatic('pk_test_7350FF54E20EF62A')
+    // let w: any = window
+
+    window.web3 = new Web3(fm.getProvider() as any)
+
+    let isUserLoggedIn = await fm.user.isLoggedIn()
+    // console.log(isUserLoggedIn) // false
+
+    if (isUserLoggedIn) {
+      fm.user.logout()
+    }
+
+    fm.user.login().then(() => {
+      web3.eth.getAccounts().then(console.log) // ['0x...']
+    })
+    // Request user login if needed, returns current user account address
+    // web3.currentProvider.enable()
+    // fm.user.login().then(() => {
+    //   web3.eth.getAccounts().then(console.log) // ['0x...']
+    // })
+
+    // const domain = window.location.origin
+    // const challenge = '99612b24-63d9-11ea-b99f-4f66f3e4f81a' // TODO: generate
+
+    // console.log('Sending DIDAuth query...')
+
+    // const didAuthQuery: any = {
+    //   web: {
+    //     VerifiablePresentation: {
+    //       query: [
+    //         {
+    //           type: 'DIDAuth'
+    //         }
+    //       ],
+    //       challenge,
+    //       domain // e.g.: requestingparty.example.com
+    //     }
+    //   }
+    // }
+
+    // // Use Credential Handler API to authenticate
+    // const result: any = await navigator.credentials.get(didAuthQuery)
+    // console.log(result)
+
+    // AuthService.loginUserByXRWallet(result)
+  }
+
+  const handleXRWalletLoginClick = async (e) => {
     const domain = window.location.origin
     const challenge = '99612b24-63d9-11ea-b99f-4f66f3e4f81a' // TODO: generate
 
@@ -434,6 +517,10 @@ const ProfileMenu = (props: Props): any => {
                       <GitHub />
                     </a>
                   )}
+
+                  <a href="#" id="metamask" onClick={handleWalletLoginClick}>
+                    <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" />
+                  </a>
                 </div>
                 <Typography variant="h4" className={styles.smallTextBlock}>
                   {t('user:usermenu.profile.createOne')}
