@@ -48,8 +48,8 @@
     "@xrengine/matchmaking": "^0.4.13",
     "@xrengine/projects": "^0.4.13",
     "classnames": "2.3.1",
+    "es6-promisify": "^7.0.0",
     "file-regex": "3.1.0",
-    "fortmatic": "^2.2.1",
     "i18next": "21.5.3",
     "i18next-browser-languagedetector": "6.1.2",
     "lodash": "4.17.21",
@@ -66,7 +66,6 @@
     "react-router-dom": "5.3.0",
     "sass": "1.43.4",
     "socket.io-client": "4.4.0",
-    "web3": "0.20",
     "webxr-native": "0.3.0",
     "yuka": "0.7.6"
   },

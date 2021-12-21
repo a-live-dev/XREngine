@@ -27,6 +27,7 @@ import { useAdminAuthSettingState } from '../../../../admin/services/Setting/Aut
 import { useHistory } from 'react-router-dom'
 import Fortmatic from 'fortmatic'
 import Web3 from 'web3'
+import { promisify } from 'es6-promisify'
 interface Props {
   changeActiveMenu?: any
   setProfileMenuOpen?: any
@@ -214,23 +215,36 @@ const ProfileMenu = (props: Props): any => {
   const handleFortmaticLoginClick = async (e) => {
     const fm = new Fortmatic('pk_test_7350FF54E20EF62A')
     // let w: any = window
-
+    let provider: any = fm.getProvider()
     ;(window as any).web3 = new Web3(fm.getProvider() as any)
 
     let isUserLoggedIn = await fm.user.isLoggedIn()
     // console.log(isUserLoggedIn) // false
-
-    if (isUserLoggedIn) {
-      fm.user.logout()
+    let getAccounts = promisify((window as any).web3.eth.getAccounts)
+    if (!isUserLoggedIn) {
+      await fm.user.login()
     }
+    let accounts = await getAccounts()
+    const account = accounts[0]
+    console.log('Account:', account)
+    setWalletAccount(account)
 
-    fm.user.login().then(() => {
-      ;(window as any).eth.getAccounts().then(console.log) // ['0x...']
-    })
+    // fm.user.login().then(async () => {
+    //   try {
+    //     const accounts = await provider.request({ method: 'eth_requestAccounts' })
+    //     const account = accounts[0]
+    //     console.log('Account:', account)
+    //     setWalletAccount(account)
+    //   } catch (err) {
+    //     alert(err.message)
+    //   }
+    //   // ;(window as any).eth.getAccounts().then(console.log) // ['0x...']
+    // })
     // Request user login if needed, returns current user account address
     // web3.currentProvider.enable()
+
     // fm.user.login().then(() => {
-    //   web3.eth.getAccounts().then(console.log) // ['0x...']
+    //   web3.then(console.log) // ['0x...']
     // })
 
     // const domain = window.location.origin
