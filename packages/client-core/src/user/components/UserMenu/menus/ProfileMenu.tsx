@@ -104,26 +104,35 @@ const ProfileMenu = (props: Props): any => {
   let type = ''
 
   const handleConnectOnce = async () => {
-    const accounts = await (window as any).ethereum
-      .request({
-        method: 'wallet_requestPermissions',
-        params: [
-          {
-            eth_accounts: []
-          }
-        ]
-      })
-      .then(() => (window as any).ethereum.request({ method: 'eth_requestAccounts' }))
-    setWalletAccount(accounts[0])
+    try {
+      const accounts = await (window as any).ethereum
+        .request({
+          method: 'wallet_requestPermissions',
+          params: [
+            {
+              eth_accounts: []
+            }
+          ]
+        })
+        .then(() => (window as any).ethereum.request({ method: 'eth_requestAccounts' }))
+
+      setWalletAccount(accounts[0])
+    } catch (err) {
+      alert(err.message)
+    }
   }
 
   const handleConnectWallet = async () => {
     console.log('Connecting Metamask...')
     const provider = (window as any).ethereum
-    const accounts = await provider.request({ method: 'eth_requestAccounts' })
-    const account = accounts[0]
-    console.log('Account:', account)
-    setWalletAccount(account)
+    try {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' })
+      const account = accounts[0]
+      console.log('Account:', account)
+      setWalletAccount(account)
+    } catch (err) {
+      alert(err.message)
+    }
   }
 
   const handleDisconnect = async () => {
@@ -532,11 +541,11 @@ const ProfileMenu = (props: Props): any => {
                     </a>
                   )} */}
 
-                  <a href="#" id="fortmatic" onClick={handleFortmaticLoginClick}>
+                  <a href="#" id="fortmatic_email" onClick={handleFortmaticLoginClick}>
                     <Email />
                     {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
                   </a>
-                  <a href="#" id="fortmatic" onClick={handleFortmaticLoginClick}>
+                  <a href="#" id="fortmatic_mobile" onClick={handleFortmaticLoginClick}>
                     <PhoneIphone />
                     {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
                   </a>
