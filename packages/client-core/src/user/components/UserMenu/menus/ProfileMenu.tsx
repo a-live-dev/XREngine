@@ -2,7 +2,7 @@ import Button from '@mui/material/Button'
 import InputAdornment from '@mui/material/InputAdornment'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { Check, Close, Create, GitHub, Send } from '@mui/icons-material'
+import { Check, Close, Create, GitHub, Email, Send, PhoneIphone } from '@mui/icons-material'
 import { useAuthState } from '../../../services/AuthService'
 import { AuthService } from '../../../services/AuthService'
 import React, { useEffect, useState } from 'react'
@@ -103,6 +103,20 @@ const ProfileMenu = (props: Props): any => {
 
   let type = ''
 
+  const handleConnectOnce = async () => {
+    const accounts = await (window as any).ethereum
+      .request({
+        method: 'wallet_requestPermissions',
+        params: [
+          {
+            eth_accounts: []
+          }
+        ]
+      })
+      .then(() => (window as any).ethereum.request({ method: 'eth_requestAccounts' }))
+    setWalletAccount(accounts[0])
+  }
+
   const handleConnectWallet = async () => {
     console.log('Connecting Metamask...')
     const provider = (window as any).ethereum
@@ -188,7 +202,7 @@ const ProfileMenu = (props: Props): any => {
     await AuthService.logoutUser()
     // window.location.reload()
   }
-  const handleWalletLoginClick = async (e) => {
+  const handleFortmaticLoginClick = async (e) => {
     const fm = new Fortmatic('pk_test_7350FF54E20EF62A')
     // let w: any = window
 
@@ -444,11 +458,11 @@ const ProfileMenu = (props: Props): any => {
           <>
             {selfUser?.userRole.value === 'guest' && enableConnect && (
               <section className={styles.emailPhoneSection}>
-                <Typography variant="h1" className={styles.panelHeader}>
+                {/* <Typography variant="h1" className={styles.panelHeader}>
                   {getConnectText()}
-                </Typography>
+                </Typography> */}
 
-                <form onSubmit={handleSubmit}>
+                {/* <form onSubmit={handleSubmit}>
                   <TextField
                     className={styles.emailField}
                     size="small"
@@ -468,7 +482,7 @@ const ProfileMenu = (props: Props): any => {
                       )
                     }}
                   />
-                </form>
+                </form> */}
               </section>
             )}
             {selfUser?.userRole.value === 'guest' && changeActiveMenu != null && (
@@ -489,10 +503,10 @@ const ProfileMenu = (props: Props): any => {
             {selfUser?.userRole.value === 'guest' && enableSocial && (
               <section className={styles.socialBlock}>
                 <Typography variant="h3" className={styles.textBlock}>
-                  {t('user:usermenu.profile.connectSocial')}
+                  {t('user:usermenu.profile.connectWallet')}
                 </Typography>
                 <div className={styles.socialContainer}>
-                  {authState?.google && (
+                  {/* {authState?.google && (
                     <a href="#" id="google" onClick={handleOAuthServiceClick}>
                       <GoogleIcon width="40" height="40" viewBox="0 0 40 40" />
                     </a>
@@ -516,9 +530,18 @@ const ProfileMenu = (props: Props): any => {
                     <a href="#" id="github" onClick={handleOAuthServiceClick}>
                       <GitHub />
                     </a>
-                  )}
+                  )} */}
 
-                  <a href="#" id="metamask" onClick={handleWalletLoginClick}>
+                  <a href="#" id="fortmatic" onClick={handleFortmaticLoginClick}>
+                    <Email />
+                    {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
+                  </a>
+                  <a href="#" id="fortmatic" onClick={handleFortmaticLoginClick}>
+                    <PhoneIphone />
+                    {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
+                  </a>
+
+                  <a href="#" id="metamask" onClick={handleConnectWallet}>
                     <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" />
                   </a>
                 </div>

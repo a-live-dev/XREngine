@@ -147,6 +147,7 @@
       "emailError": "Invalid email address",
       "loginWithReadyPlayerMe": "Login with Ready Player Me",
       "connectSocial": "Connect with social accounts",
+      "connectWallet": "Connect your wallets",
       "createOne": "If you don't have an account, a new one will be created for you",
       "connections": {
         "title": "Connections",
@@ -179,11 +180,11 @@
       }
     },
     "oauth": {
-        "authenticating": "Authenticating...",
-        "authFailed": "{{service}} authentication failed."
+      "authenticating": "Authenticating...",
+      "authFailed": "{{service}} authentication failed."
     },
     "magikLink": {
-        "wait": "Please wait a moment while processing..."
+      "wait": "Please wait a moment while processing..."
     },
     "dashboard": {
       "header": "Dashboard",
@@ -250,6 +251,5 @@
     "confirmation": "Are you sure?",
     "canNotBeRemoved": "Active Avatar can not be removed",
     "remove": "Remove avatar"
-}
-
+  }
 }
