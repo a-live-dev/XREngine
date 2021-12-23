@@ -7,7 +7,10 @@ import InventoryItemType from './inventory-item-type/inventory-item-type.service
 import InventoryItem from './inventory-item/inventory-item.service'
 import Login from './login/login.service'
 import LoginToken from './login-token/login-token.service'
+import WalletToken from './wallet-token/wallet-token.service'
 import MagicLink from './magic-link/magic-link.service'
+import MagicWallet from './magic-wallet/magic-wallet.service'
+
 import SMS from './sms/sms.service'
 import User from './user/user.service'
 import UserRelationship from './user-relationship/user-relationship.service'
@@ -35,7 +38,9 @@ export default [
   Avatar,
   Login,
   LoginToken,
+  WalletToken,
   MagicLink,
+  MagicWallet,
   Email,
   SMS
 ]

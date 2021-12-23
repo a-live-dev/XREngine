@@ -123,19 +123,6 @@ const ProfileMenu = (props: Props): any => {
     }
   }
 
-  const handleConnectWallet = async () => {
-    console.log('Connecting Metamask...')
-    const provider = (window as any).ethereum
-    try {
-      const accounts = await provider.request({ method: 'eth_requestAccounts' })
-      const account = accounts[0]
-      console.log('Account:', account)
-      setWalletAccount(account)
-    } catch (err) {
-      alert(err.message)
-    }
-  }
-
   const handleDisconnect = async () => {
     console.log('Disconnecting Metamask')
     setIsConnected(false)
@@ -212,6 +199,37 @@ const ProfileMenu = (props: Props): any => {
     await AuthService.logoutUser()
     // window.location.reload()
   }
+  const handleMetamaskLoginClick_new = async () => {
+    ;(window as any).web3 = new Web3((window as any).ethereum as any)
+
+    // let isUserLoggedIn = await fm.user.isLoggedIn()
+    // console.log(isUserLoggedIn) // false
+    let getAccounts = promisify((window as any).web3.eth.getAccounts)
+    // if (!isUserLoggedIn) {
+    //   await fm.user.login()
+    // }
+    let accounts = await getAccounts()
+    const account = accounts[0]
+    console.log('Account:', account)
+    setWalletAccount(account)
+    AuthService.addConnectionByWallet(account, selfUser?.id?.value!, 'metamask')
+  }
+  const handleMetamaskLoginClick = async () => {
+    console.log('Connecting Metamask...')
+    const provider = (window as any).ethereum
+    ;(window as any).web3 = new Web3((window as any).ethereum as any)
+
+    try {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' })
+      const account = accounts[0]
+      console.log('Account:', account)
+      setWalletAccount(account)
+      AuthService.addConnectionByWallet(account, selfUser?.id?.value!, 'metamask')
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
   const handleFortmaticLoginClick = async (e) => {
     const fm = new Fortmatic('pk_test_7350FF54E20EF62A')
     // let w: any = window
@@ -228,7 +246,7 @@ const ProfileMenu = (props: Props): any => {
     const account = accounts[0]
     console.log('Account:', account)
     setWalletAccount(account)
-
+    AuthService.addConnectionByWallet(account, selfUser?.id?.value!, 'fortmatic')
     // fm.user.login().then(async () => {
     //   try {
     //     const accounts = await provider.request({ method: 'eth_requestAccounts' })
@@ -564,7 +582,7 @@ const ProfileMenu = (props: Props): any => {
                     {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
                   </a>
 
-                  <a href="#" id="metamask" onClick={handleConnectWallet}>
+                  <a href="#" id="metamask" onClick={handleMetamaskLoginClick}>
                     <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" />
                   </a>
                 </div>

@@ -36,11 +36,31 @@ export class IdentityProvider extends Service {
   async create(data: any, params: Params): Promise<any> {
     let { token, type, password } = data
 
-    if (params.provider && type !== 'password' && type !== 'email' && type !== 'sms') type = 'guest' //Non-password/magiclink create requests must always be for guests
+    if (
+      params.provider &&
+      type !== 'metamask' &&
+      type !== 'fortmatic' &&
+      type !== 'password' &&
+      type !== 'email' &&
+      type !== 'sms'
+    )
+      type = 'guest' //Non-password/magiclink create requests must always be for guests
     let userId = data.userId
     let identityProvider: any
 
     switch (type) {
+      case 'metamask':
+        identityProvider = {
+          token,
+          type
+        }
+        break
+      case 'fortmatic':
+        identityProvider = {
+          token,
+          type
+        }
+        break
       case 'email':
         identityProvider = {
           token,

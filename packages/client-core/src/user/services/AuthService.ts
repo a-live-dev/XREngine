@@ -492,6 +492,41 @@ export const AuthService = {
         .finally(() => dispatch(AuthAction.actionProcessing(false)))
     }
   },
+  createWalletChallenge: async (pub_key: string, authState: AuthStrategies, linkType?: 'metamask' | 'fortmatic') => {
+    const dispatch = useDispatch()
+    {
+      dispatch(AuthAction.actionProcessing(true))
+
+      let type
+      let paramName = 'pub_key'
+
+      if (linkType === 'metamask') {
+        type = 'metamask'
+      } else if (linkType === 'fortmatic') {
+        type = 'fortmatic'
+      } else {
+        AlertService.dispatchAlertError(new Error('Please select valid web3 login type'))
+
+        return
+      }
+
+      client
+        .service('magic-wallet')
+        .create({
+          type,
+          [paramName]: pub_key
+        })
+        .then((res: any) => {
+          dispatch(AuthAction.didCreateWalletChallenge(true))
+          AlertService.dispatchAlertSuccess('Wallet Challenge received Successfully. Please check your Email or SMS.')
+        })
+        .catch((err: any) => {
+          dispatch(AuthAction.didCreateWalletChallenge(false))
+          AlertService.dispatchAlertError(err)
+        })
+        .finally(() => dispatch(AuthAction.actionProcessing(false)))
+    }
+  },
   createMagicLink: async (emailPhone: string, authState: AuthStrategies, linkType?: 'email' | 'sms') => {
     const dispatch = useDispatch()
     {
@@ -567,6 +602,31 @@ export const AuthService = {
         .then((res: any) => {
           const identityProvider = res as IdentityProvider
           return AuthService.loadUserData(identityProvider.userId)
+        })
+        .catch((err: any) => {
+          AlertService.dispatchAlertError(err)
+        })
+        .finally(() => dispatch(AuthAction.actionProcessing(false)))
+    }
+  },
+  addConnectionByWallet: async (pub_key: string, userId: string, linkType?: 'metamask' | 'fortmatic') => {
+    const dispatch = useDispatch()
+    {
+      dispatch(AuthAction.actionProcessing(true))
+      client
+        .service('magic-wallet')
+        .create({
+          pub_key,
+          type: linkType,
+          userId
+        })
+        .then((res: any) => {
+          const identityProvider = res as IdentityProvider
+
+          ;(window as any).web3.personal.sign(identityProvider.token, pub_key, (error, sign) => {
+            console.log({ sign })
+          })
+          // if (identityProvider.userId != null) return AuthService.loadUserData(identityProvider.userId)
         })
         .catch((err: any) => {
           AlertService.dispatchAlertError(err)
@@ -937,6 +997,12 @@ export const AuthAction = {
   didCreateMagicLink: (result: boolean) => {
     return {
       type: 'DID_CREATE_MAGICLINK' as const,
+      result
+    }
+  },
+  didCreateWalletChallenge: (result: boolean) => {
+    return {
+      type: 'DID_CREATE_WALLET_CHALLENGE' as const,
       result
     }
   },
