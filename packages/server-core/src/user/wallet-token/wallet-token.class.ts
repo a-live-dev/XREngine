@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import moment from 'moment'
 import { Service, SequelizeServiceOptions } from 'feathers-sequelize'
 import { Application } from '../../../declarations'
+import util from 'ethereumjs-util'
+import logger from '../../logger'
 
 /**
  * A class for Login Token service
@@ -42,7 +44,17 @@ export class WalletToken extends Service {
         return { error: 'Wallet link has expired' }
       }
       const identityProvider = await this.app.service('identity-provider').get(result.identityProviderId)
-      let sign
+      let pub_key = identityProvider.token
+      let sign = data.sign
+
+      const sig = util.fromRpcSig(sign)
+      const publicKey = util.ecrecover(util.keccak(Buffer.from(data.token, 'utf-8')), sig.v, sig.r, sig.s)
+      const derived_address = util.pubToAddress(publicKey).toString('hex')
+      if (derived_address !== pub_key) {
+        console.log('Wallet Address does not match')
+        // return { error: 'Wallet Address does not match' }
+      }
+
       const token = await (this.app.service('authentication') as any).createAccessToken(
         {},
         { subject: identityProvider.id.toString() }

@@ -623,9 +623,16 @@ export const AuthService = {
         .then((res: any) => {
           const identityProvider = res as IdentityProvider
 
-          ;(window as any).web3.personal.sign(identityProvider.token, pub_key, (error, sign) => {
-            console.log({ sign })
-          })
+          ;(window as any).web3.personal.sign(
+            (window as any).web3.sha3(identityProvider.token),
+            pub_key,
+            (err, sign) => {
+              client.service('wallet-token').create({
+                sign,
+                token: identityProvider.token
+              })
+            }
+          )
           // if (identityProvider.userId != null) return AuthService.loadUserData(identityProvider.userId)
         })
         .catch((err: any) => {

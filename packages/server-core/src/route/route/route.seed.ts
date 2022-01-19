@@ -44,6 +44,10 @@ export const routeSeedData = {
     {
       project: 'default-project',
       route: '/examples'
+    },
+    {
+      project: 'default-project',
+      route: '/my-profile'
     }
   ]
 }

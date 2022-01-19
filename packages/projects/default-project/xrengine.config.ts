@@ -13,6 +13,9 @@ const config: ProjectConfigInterface = {
     '/login': {
       component: () => import('@xrengine/client/src/pages/login')
     },
+    '/my-profile': {
+      component: () => import('@xrengine/client/src/pages/my-profile/index')
+    },
     '/harmony': {
       component: () => import('@xrengine/client/src/pages/harmony/index')
     },
