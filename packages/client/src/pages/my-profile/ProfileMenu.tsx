@@ -1,0 +1,612 @@
+import Button from '@mui/material/Button'
+import InputAdornment from '@mui/material/InputAdornment'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { Check, Close, Create, GitHub, Email, Send, PhoneIphone } from '@mui/icons-material'
+import { useAuthState } from '../../../../client-core/src/user/services/AuthService'
+import { AuthService } from '../../../../client-core/src/user/services/AuthService'
+import React, { useEffect, useState } from 'react'
+import { useDispatch } from '../../../../client-core/src/store'
+import { MetamaskIcon } from '../../../../client-core/src/common/components/Icons/MetamaskIcon'
+import { getAvatarURLForUser, Views } from '../../../../client-core/src/user/components/UserMenu/util'
+import { Config, validateEmail, validatePhoneNumber } from '@xrengine/common/src/config'
+import * as polyfill from 'credential-handler-polyfill'
+// import { header } from 'style/ui.scss';
+import styles from '../../../../client-core/src/user/components/UserMenu/UserMenu.module.scss'
+import { useTranslation } from 'react-i18next'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import Tooltip from '@mui/material/Tooltip'
+import Grid from '@mui/material/Grid'
+import { CopyToClipboard } from 'react-copy-to-clipboard'
+import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar'
+import { AuthSettingService } from '../../../../client-core/src/admin/services/Setting/AuthSettingService'
+import { useAdminAuthSettingState } from '../../../../client-core/src/admin/services/Setting/AuthSettingService'
+import { useHistory } from 'react-router-dom'
+import Fortmatic from 'fortmatic'
+import Web3 from 'web3'
+import { promisify } from 'es6-promisify'
+interface Props {
+  changeActiveMenu?: any
+  setProfileMenuOpen?: any
+
+  hideLogin?: any
+}
+
+const initialState = {
+  jwt: true,
+  local: false,
+  facebook: false,
+  github: false,
+  google: false,
+  linkedin: false,
+  twitter: false,
+  smsMagicLink: false,
+  emailMagicLink: false,
+  metamask: true
+}
+
+const ProfileMenu = (props: Props): any => {
+  const history = useHistory()
+
+  const { changeActiveMenu, setProfileMenuOpen, hideLogin } = props
+  const { t } = useTranslation()
+
+  const dispatch = useDispatch()
+  const selfUser = useAuthState().user
+
+  const [username, setUsername] = useState(selfUser?.name.value)
+  const [emailPhone, setEmailPhone] = useState('')
+  const [error, setError] = useState(false)
+  const [errorUsername, setErrorUsername] = useState(false)
+  const [showUserId, setShowUserId] = useState(false)
+  const [userIdState, setUserIdState] = useState({ value: '', copied: false, open: false })
+  const authSettingState = useAdminAuthSettingState()
+  const [authSetting] = authSettingState?.authSettings?.value || []
+  const [authState, setAuthState] = useState(initialState)
+  const [walletAccount, setWalletAccount] = useState('')
+  const [currentChain, setCurrentChain] = useState(undefined)
+  const [isConnected, setIsConnected] = useState(false)
+
+  useEffect(() => {
+    setIsConnected(walletAccount ? true : false)
+  }, [walletAccount])
+
+  useEffect(() => {
+    if (typeof (window as any).ethereum != 'undefined') {
+      ;(window as any).ethereum.on('accountsChanged', (accounts) => {
+        console.log('Account changed: ', accounts[0])
+        setWalletAccount(accounts[0])
+      })
+      ;(window as any).ethereum.on('chainChanged', (chainId) => {
+        console.log('Chain Id changed:', chainId)
+        setCurrentChain(chainId)
+      })
+    }
+  }, [])
+  useEffect(() => {
+    !authSetting && AuthSettingService.fetchAuthSetting()
+  }, [])
+
+  useEffect(() => {
+    if (authSetting) {
+      let temp = { ...initialState }
+      authSetting?.authStrategies?.forEach((el) => {
+        Object.entries(el).forEach(([strategyName, strategy]) => {
+          temp[strategyName] = strategy
+        })
+      })
+      setAuthState(temp)
+    }
+  }, [authSettingState?.updateNeeded?.value])
+
+  let type = ''
+
+  const handleConnectOnce = async () => {
+    try {
+      const accounts = await (window as any).ethereum
+        .request({
+          method: 'wallet_requestPermissions',
+          params: [
+            {
+              eth_accounts: []
+            }
+          ]
+        })
+        .then(() => (window as any).ethereum.request({ method: 'eth_requestAccounts' }))
+
+      setWalletAccount(accounts[0])
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  const handleDisconnect = async () => {
+    console.log('Disconnecting Metamask')
+    setIsConnected(false)
+    setWalletAccount('')
+  }
+  const loadCredentialHandler = async () => {
+    try {
+      const mediator = `${Config.publicRuntimeConfig.mediatorServer}/mediator?origin=${encodeURIComponent(
+        window.location.origin
+      )}`
+
+      await polyfill.loadOnce(mediator)
+      console.log('Ready to work with credentials!')
+    } catch (e) {
+      console.error('Error loading polyfill:', e)
+    }
+  }
+
+  useEffect(() => {
+    loadCredentialHandler()
+  }, []) // Only run once
+
+  useEffect(() => {
+    selfUser && setUsername(selfUser.name.value)
+  }, [selfUser.name.value])
+
+  const updateUserName = (e) => {
+    e.preventDefault()
+    handleUpdateUsername()
+  }
+
+  const handleUsernameChange = (e) => {
+    setUsername(e.target.value)
+    if (!e.target.value) setErrorUsername(true)
+  }
+
+  const handleUpdateUsername = () => {
+    const name = username.trim()
+    if (!name) return
+    if (selfUser.name.value.trim() !== name) {
+      AuthService.updateUsername(selfUser.id.value as string, name)
+    }
+  }
+  const handleInputChange = (e) => setEmailPhone(e.target.value)
+
+  const validate = () => {
+    if (emailPhone === '') return false
+    if (validateEmail(emailPhone.trim()) && authState?.emailMagicLink) type = 'email'
+    else if (validatePhoneNumber(emailPhone.trim()) && authState.smsMagicLink) type = 'sms'
+    else {
+      setError(true)
+      return false
+    }
+
+    setError(false)
+    return true
+  }
+
+  const handleSubmit = (e: any): any => {
+    e.preventDefault()
+    if (!validate()) return
+    if (type === 'email') AuthService.addConnectionByEmail(emailPhone, selfUser?.id?.value!)
+    else if (type === 'sms') AuthService.addConnectionBySms(emailPhone, selfUser?.id?.value!)
+    return
+  }
+
+  const handleOAuthServiceClick = (e) => {
+    AuthService.loginUserByOAuth(e.currentTarget.id)
+  }
+
+  const handleLogout = async (e) => {
+    if (changeActiveMenu != null) changeActiveMenu(null)
+    else if (setProfileMenuOpen != null) setProfileMenuOpen(false)
+    await AuthService.logoutUser()
+    // window.location.reload()
+  }
+  const handleMetamaskLoginClick_new = async () => {
+    ;(window as any).web3 = new Web3((window as any).ethereum as any)
+
+    // let isUserLoggedIn = await fm.user.isLoggedIn()
+    // console.log(isUserLoggedIn) // false
+    let getAccounts = promisify((window as any).web3.eth.getAccounts)
+    // if (!isUserLoggedIn) {
+    //   await fm.user.login()
+    // }
+    let accounts = await getAccounts()
+    const account = accounts[0]
+    console.log('Account:', account)
+    setWalletAccount(account)
+    AuthService.addConnectionByWallet(account, selfUser?.id?.value!, 'metamask')
+  }
+  const handleMetamaskLoginClick = async () => {
+    console.log('Connecting Metamask...')
+    const provider = (window as any).ethereum
+    ;(window as any).web3 = new Web3((window as any).ethereum as any)
+
+    try {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' })
+      const account = accounts[0]
+      console.log('Account:', account)
+      setWalletAccount(account)
+      AuthService.addConnectionByWallet(account, selfUser?.id?.value!, 'metamask')
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  const handleFortmaticLoginClick = async (e) => {
+    const fm = new Fortmatic('pk_test_7350FF54E20EF62A')
+    // let w: any = window
+    let provider: any = fm.getProvider()
+    ;(window as any).web3 = new Web3(fm.getProvider() as any)
+
+    let isUserLoggedIn = await fm.user.isLoggedIn()
+    // console.log(isUserLoggedIn) // false
+    let getAccounts = promisify((window as any).web3.eth.getAccounts)
+    if (!isUserLoggedIn) {
+      await fm.user.login()
+    }
+    let accounts = await getAccounts()
+    const account = accounts[0]
+    console.log('Account:', account)
+    setWalletAccount(account)
+    AuthService.addConnectionByWallet(account, selfUser?.id?.value!, 'fortmatic')
+    // fm.user.login().then(async () => {
+    //   try {
+    //     const accounts = await provider.request({ method: 'eth_requestAccounts' })
+    //     const account = accounts[0]
+    //     console.log('Account:', account)
+    //     setWalletAccount(account)
+    //   } catch (err) {
+    //     alert(err.message)
+    //   }
+    //   // ;(window as any).eth.getAccounts().then(console.log) // ['0x...']
+    // })
+    // Request user login if needed, returns current user account address
+    // web3.currentProvider.enable()
+
+    // fm.user.login().then(() => {
+    //   web3.then(console.log) // ['0x...']
+    // })
+
+    // const domain = window.location.origin
+    // const challenge = '99612b24-63d9-11ea-b99f-4f66f3e4f81a' // TODO: generate
+
+    // console.log('Sending DIDAuth query...')
+
+    // const didAuthQuery: any = {
+    //   web: {
+    //     VerifiablePresentation: {
+    //       query: [
+    //         {
+    //           type: 'DIDAuth'
+    //         }
+    //       ],
+    //       challenge,
+    //       domain // e.g.: requestingparty.example.com
+    //     }
+    //   }
+    // }
+
+    // // Use Credential Handler API to authenticate
+    // const result: any = await navigator.credentials.get(didAuthQuery)
+    // console.log(result)
+
+    // AuthService.loginUserByXRWallet(result)
+  }
+
+  const handleXRWalletLoginClick = async (e) => {
+    const domain = window.location.origin
+    const challenge = '99612b24-63d9-11ea-b99f-4f66f3e4f81a' // TODO: generate
+
+    console.log('Sending DIDAuth query...')
+
+    const didAuthQuery: any = {
+      web: {
+        VerifiablePresentation: {
+          query: [
+            {
+              type: 'DIDAuth'
+            }
+          ],
+          challenge,
+          domain // e.g.: requestingparty.example.com
+        }
+      }
+    }
+
+    // Use Credential Handler API to authenticate
+    const result: any = await navigator.credentials.get(didAuthQuery)
+    console.log(result)
+
+    AuthService.loginUserByXRWallet(result)
+  }
+
+  const handleShowId = () => {
+    setShowUserId(!showUserId)
+    setUserIdState({ ...userIdState, value: selfUser.id.value as string })
+  }
+
+  const handleClose = () => {
+    setUserIdState({ ...userIdState, open: false })
+  }
+
+  const getConnectText = () => {
+    if (authState?.emailMagicLink && authState?.smsMagicLink) {
+      return t('user:usermenu.profile.connectPhoneEmail')
+    } else if (authState?.emailMagicLink && !authState?.smsMagicLink) {
+      return t('user:usermenu.profile.connectEmail')
+    } else if (!authState?.emailMagicLink && authState?.smsMagicLink) {
+      return t('user:usermenu.profile.connectPhone')
+    } else {
+      return ''
+    }
+  }
+
+  const getErrorText = () => {
+    if (authState?.emailMagicLink && authState?.smsMagicLink) {
+      return t('user:usermenu.profile.phoneEmailError')
+    } else if (authState?.emailMagicLink && !authState?.smsMagicLink) {
+      return t('user:usermenu.profile.emailError')
+    } else if (!authState?.emailMagicLink && authState?.smsMagicLink) {
+      return t('user:usermenu.profile.phoneError')
+    } else {
+      return ''
+    }
+  }
+
+  const getConnectPlaceholder = () => {
+    if (authState?.emailMagicLink && authState?.smsMagicLink) {
+      return t('user:usermenu.profile.ph-phoneEmail')
+    } else if (authState?.emailMagicLink && !authState?.smsMagicLink) {
+      return t('user:usermenu.profile.ph-email')
+    } else if (!authState?.emailMagicLink && authState?.smsMagicLink) {
+      return t('user:usermenu.profile.ph-phone')
+    } else {
+      return ''
+    }
+  }
+
+  const enableSocial =
+    authState?.facebook || authState?.github || authState?.google || authState?.linkedin || authState?.twitter
+
+  const enableConnect = authState?.emailMagicLink || authState?.smsMagicLink
+
+  return (
+    <div className={styles.menuPanel}>
+      <section className={styles.profilePanel}>
+        <section className={styles.profileBlock}>
+          <div className={styles.avatarBlock}>
+            <img src={getAvatarURLForUser(selfUser?.id?.value)} />
+            {changeActiveMenu != null && (
+              <Button
+                className={styles.avatarBtn}
+                id="select-avatar"
+                onClick={() => changeActiveMenu(Views.Avatar)}
+                disableRipple
+              >
+                <Create />
+              </Button>
+            )}
+          </div>
+          <div className={styles.headerBlock}>
+            <Typography variant="h1" className={styles.panelHeader}>
+              {t('user:usermenu.profile.lbl-username')}
+            </Typography>
+            <span className={styles.inputBlock}>
+              <TextField
+                margin="none"
+                size="small"
+                name="username"
+                variant="outlined"
+                value={username || ''}
+                onChange={handleUsernameChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') updateUserName(e)
+                }}
+                className={styles.usernameInput}
+                error={errorUsername}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <a href="#" className={styles.materialIconBlock} onClick={updateUserName}>
+                        <Check className={styles.primaryForeground} />
+                      </a>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </span>
+
+            <Grid container justifyContent="right">
+              <Grid item xs={6}>
+                <h2>
+                  {selfUser?.userRole?.value === 'admin'
+                    ? t('user:usermenu.profile.youAreAn')
+                    : t('user:usermenu.profile.youAreA')}{' '}
+                  <span>{selfUser?.userRole?.value}</span>.
+                </h2>
+              </Grid>
+              <Grid item container xs={6} alignItems="flex-start" direction="column">
+                <Tooltip title="Show User ID" placement="right">
+                  <h2 className={styles.showUserId} onClick={handleShowId}>
+                    {showUserId ? t('user:usermenu.profile.hideUserId') : t('user:usermenu.profile.showUserId')}{' '}
+                  </h2>
+                </Tooltip>
+              </Grid>
+            </Grid>
+
+            <h4>
+              {(selfUser.userRole.value === 'user' || selfUser.userRole.value === 'admin') && (
+                <div className={styles.logout} onClick={handleLogout}>
+                  {t('user:usermenu.profile.logout')}
+                </div>
+              )}
+            </h4>
+            {selfUser?.inviteCode.value != null && (
+              <h2>
+                {t('user:usermenu.profile.inviteCode')}: {selfUser.inviteCode.value}
+              </h2>
+            )}
+            {/* {selfUser?.userRole.value !== 'guest' && (
+              <>
+                <button onClick={() => history.push(`/inventory/${selfUser.id.value}`)} className={styles.walletBtn}>
+                  My Inventory
+                </button>
+                <button onClick={() => history.push(`/trading/${selfUser.id.value}`)} className={styles.walletBtn}>
+                  My Trading
+                </button>
+                <button onClick={() => history.push(`/wallet/${selfUser.id.value}`)} className={styles.walletBtn}>
+                  My Wallet
+                </button>
+              </>
+            )} */}
+          </div>
+        </section>
+
+        {showUserId && (
+          <section className={styles.emailPhoneSection}>
+            <Typography variant="h1" className={styles.panelHeader}>
+              User id
+            </Typography>
+
+            <form>
+              <TextField
+                className={styles.emailField}
+                size="small"
+                placeholder={'user id'}
+                variant="outlined"
+                value={selfUser?.id.value}
+                onChange={({ target: { value } }) => setUserIdState({ ...userIdState, value, copied: false })}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <CopyToClipboard
+                        text={userIdState.value}
+                        onCopy={() => {
+                          setUserIdState({ ...userIdState, copied: true, open: true })
+                        }}
+                      >
+                        <a href="#" className={styles.materialIconBlock}>
+                          <ContentCopyIcon className={styles.primaryForeground} />
+                        </a>
+                      </CopyToClipboard>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </form>
+          </section>
+        )}
+
+        {!hideLogin && (
+          <>
+            {selfUser?.userRole.value === 'guest' && enableConnect && (
+              <section className={styles.emailPhoneSection}>
+                {/* <Typography variant="h1" className={styles.panelHeader}>
+                  {getConnectText()}
+                </Typography> */}
+
+                {/* <form onSubmit={handleSubmit}>
+                  <TextField
+                    className={styles.emailField}
+                    size="small"
+                    placeholder={getConnectPlaceholder()}
+                    variant="outlined"
+                    onChange={handleInputChange}
+                    onBlur={validate}
+                    error={error}
+                    helperText={error ? getErrorText() : null}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end" onClick={handleSubmit}>
+                          <a href="#" className={styles.materialIconBlock}>
+                            <Send className={styles.primaryForeground} />
+                          </a>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                </form> */}
+              </section>
+            )}
+            {/* {selfUser?.userRole.value === 'guest' && changeActiveMenu != null && ( */}
+            <section className={styles.walletSection}>
+              <Typography variant="h3" className={styles.textBlock}>
+                {t('user:usermenu.profile.or')}
+              </Typography>
+              {/*<Button onClick={handleWalletLoginClick} className={styles.walletBtn}>
+                  {t('user:usermenu.profile.lbl-wallet')}
+                </Button>
+                <br/>*/}
+              <Button onClick={() => changeActiveMenu(Views.ReadyPlayer)} className={styles.walletBtn}>
+                {t('user:usermenu.profile.loginWithReadyPlayerMe')}
+              </Button>
+            </section>
+            {/* )} */}
+
+            {selfUser?.userRole.value === 'guest' && enableSocial && (
+              <section className={styles.socialBlock}>
+                <Typography variant="h3" className={styles.textBlock}>
+                  {t('user:usermenu.profile.connectWallet')}
+                </Typography>
+                <div className={styles.socialContainer}>
+                  {/* {authState?.google && (
+                    <a href="#" id="google" onClick={handleOAuthServiceClick}>
+                      <GoogleIcon width="40" height="40" viewBox="0 0 40 40" />
+                    </a>
+                  )}
+                  {authState?.facebook && (
+                    <a href="#" id="facebook" onClick={handleOAuthServiceClick}>
+                      <FacebookIcon width="40" height="40" viewBox="0 0 40 40" />
+                    </a>
+                  )}
+                  {authState?.linkedin && (
+                    <a href="#" id="linkedin2" onClick={handleOAuthServiceClick}>
+                      <LinkedInIcon width="40" height="40" viewBox="0 0 40 40" />
+                    </a>
+                  )}
+                  {authState?.twitter && (
+                    <a href="#" id="twitter" onClick={handleOAuthServiceClick}>
+                      <TwitterIcon width="40" height="40" viewBox="0 0 40 40" />
+                    </a>
+                  )}
+                  {authState?.github && (
+                    <a href="#" id="github" onClick={handleOAuthServiceClick}>
+                      <GitHub />
+                    </a>
+                  )} */}
+
+                  <a href="#" id="fortmatic_email" onClick={handleFortmaticLoginClick}>
+                    <Email />
+                    {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
+                  </a>
+                  <a href="#" id="fortmatic_mobile" onClick={handleFortmaticLoginClick}>
+                    <PhoneIphone />
+                    {/* <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" /> */}
+                  </a>
+
+                  <a href="#" id="metamask" onClick={handleMetamaskLoginClick}>
+                    <MetamaskIcon width="40" height="40" viewBox="0 0 40 40" />
+                  </a>
+                </div>
+                <Typography variant="h4" className={styles.smallTextBlock}>
+                  {t('user:usermenu.profile.createOne')}
+                </Typography>
+              </section>
+            )}
+            {setProfileMenuOpen != null && (
+              <div className={styles.closeButton} onClick={() => setProfileMenuOpen(false)}>
+                <Close />
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <Snackbar
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        open={userIdState.open}
+        onClose={handleClose}
+        message="User ID copied"
+        key={'top' + 'center'}
+        autoHideDuration={2000}
+      />
+    </div>
+  )
+}
+
+export default ProfileMenu
