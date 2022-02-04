@@ -32,6 +32,13 @@ import { ArmatureType } from '../../ikrig/enums/ArmatureType'
 import { useWorld } from '../../ecs/functions/SystemHooks'
 import { setObjectLayers } from '../../scene/functions/setObjectLayers'
 import { AvatarProps } from '../../networking/interfaces/WorldState'
+import { insertAfterString, insertBeforeString } from '../../common/functions/string'
+import AvatarBoneMatching from '@xrengine/engine/src/avatar/AvatarBoneMatching'
+import { IKRigComponent } from '../../ikrig/components/IKRigComponent'
+import { Vector3 } from 'three'
+import { TransformComponent } from '../../transform/components/TransformComponent'
+
+const vec3 = new Vector3()
 
 export const loadAvatarForEntity = (entity: Entity, avatarDetail: AvatarProps) => {
   AssetLoader.load(
@@ -41,7 +48,7 @@ export const loadAvatarForEntity = (entity: Entity, avatarDetail: AvatarProps) =
       receiveShadow: true
     },
     (gltf: any) => {
-      console.log(gltf.scene)
+      console.log('loadAvatarForEntity', gltf.scene)
       setupAvatar(entity, SkeletonUtils.clone(gltf.scene), avatarDetail.avatarURL)
     }
   )
@@ -54,17 +61,16 @@ export const setAvatarLayer = (obj: Object3D) => {
 const setupAvatar = (entity: Entity, model: any, avatarURL?: string) => {
   const world = useWorld()
 
+  if (!entity) return
+
   const avatar = getComponent(entity, AvatarComponent)
   const animationComponent = getComponent(entity, AnimationComponent)
   const avatarAnimationComponent = getComponent(entity, AvatarAnimationComponent)
 
-  let hips = model
+  const retargeted = AvatarBoneMatching(model)
 
+  let hips = model
   model.traverse((o) => {
-    // TODO: Remove me when we add retargeting
-    if (o.name?.includes('mixamorig')) {
-      o.name = o.name.replace('mixamorig', '')
-    }
     if (o.name?.toLowerCase().includes('hips')) hips = o
   })
 
@@ -79,25 +85,23 @@ const setupAvatar = (entity: Entity, model: any, avatarURL?: string) => {
   model.traverse((object) => {
     if (object.isBone) object.visible = false
     setAvatarLayer(object)
-
     if (object.material) {
       // Transparency fix
       object.material.format = RGBAFormat
+      const material = object.material.clone()
+
+      addBoneOpacityParamsToMaterial(material, 5) // Head bone
 
       materialList.push({
         id: object.uuid,
-        material: object.material.clone()
+        material: material
       })
       object.material = DissolveEffect.getDissolveTexture(object)
     }
   })
 
   model.children.forEach((child) => avatar.modelContainer.add(child))
-
-  // TODO: find skinned mesh in avatar.modelContainer
-  const avatarSkinnedMesh = avatar.modelContainer.getObjectByProperty('type', 'SkinnedMesh') as SkinnedMesh
-  const rootBone = avatarSkinnedMesh.skeleton.bones.find((b) => b.parent!.type !== 'Bone')
-
+  const rootBone = retargeted.Root
   // TODO: add way to handle armature type
   const armatureType = avatarURL?.includes('trex') ? ArmatureType.TREX : ArmatureType.MIXAMO
   addTargetRig(entity, rootBone?.parent!, null, false, armatureType)
@@ -109,19 +113,13 @@ const setupAvatar = (entity: Entity, model: any, avatarURL?: string) => {
   const sourceSkeletonRoot: Group = SkeletonUtils.clone(getDefaultSkeleton().parent)
   rootBone?.parent!.add(sourceSkeletonRoot)
   addRig(entity, sourceSkeletonRoot)
+  getComponent(entity, IKRigComponent).boneStructure = retargeted
+
   animationComponent.mixer = new AnimationMixer(sourceSkeletonRoot)
   const retargetedBones: string[] = []
 
   sourceSkeletonRoot.traverse((child) => {
     if (child.name) retargetedBones.push(child.name)
-  })
-
-  retargetedBones.forEach((r) => {
-    if (!loadedAvatarBoneNames.includes(r)) console.warn(`[Avatar Loader]: Bone '${r}' not found`)
-  })
-
-  loadedAvatarBoneNames.forEach((r) => {
-    if (!retargetedBones.includes(r)) console.warn(`[Avatar Loader]: Bone '${r}' not supported`)
   })
 
   if (avatarAnimationComponent.currentState) {
@@ -130,11 +128,14 @@ const setupAvatar = (entity: Entity, model: any, avatarURL?: string) => {
 
   // advance animation for a frame to eliminate potential t-pose
   animationComponent.mixer.update(world.delta)
+  retargeted.Neck.updateMatrixWorld(true)
+  const transform = getComponent(entity, TransformComponent)
+  avatar.avatarHeight = retargeted.LeftEye.getWorldPosition(vec3).y - transform.position.y
 
   loadGrowingEffectObject(entity, materialList)
 }
 
-const loadGrowingEffectObject = async (entity: Entity, originalMatList: Array<MaterialMap>) => {
+const loadGrowingEffectObject = (entity: Entity, originalMatList: Array<MaterialMap>) => {
   const textureLight = AssetLoader.getFromCache('/itemLight.png')
   const texturePlate = AssetLoader.getFromCache('/itemPlate.png')
 
@@ -206,4 +207,59 @@ export function getDefaultSkeleton(): SkinnedMesh {
   group.add(bones[0]) // we assume that root bone is the first one
 
   return skinnedMesh
+}
+
+/**
+ * Adds opacity setting to a material based on single bone
+ *
+ * @param material
+ * @param boneIndex
+ */
+const addBoneOpacityParamsToMaterial = (material, boneIndex = -1) => {
+  material.transparent = true
+  material.onBeforeCompile = (shader, renderer) => {
+    shader.uniforms.boneIndexToFade = { value: boneIndex }
+    shader.uniforms.boneWeightThreshold = { value: 0.9 }
+    shader.uniforms.boneOpacity = { value: 1.0 }
+
+    // Vertex Uniforms
+    const vertexUniforms = `uniform float boneIndexToFade;
+      uniform float boneWeightThreshold;
+      varying float vSelectedBone;`
+
+    shader.vertexShader = insertBeforeString(shader.vertexShader, 'varying vec3 vViewPosition;', vertexUniforms)
+
+    shader.vertexShader = insertAfterString(
+      shader.vertexShader,
+      '#include <skinning_vertex>',
+      `
+      vSelectedBone = 0.0;
+
+      if((skinIndex.x == boneIndexToFade && skinWeight.x >= boneWeightThreshold) || 
+      (skinIndex.y == boneIndexToFade && skinWeight.y >= boneWeightThreshold) ||
+      (skinIndex.z == boneIndexToFade && skinWeight.z >= boneWeightThreshold) ||
+      (skinIndex.w == boneIndexToFade && skinWeight.w >= boneWeightThreshold)){
+          vSelectedBone = 1.0;
+      }
+      `
+    )
+
+    // Fragment Uniforms
+    const fragUniforms = `varying float vSelectedBone;
+      uniform float boneOpacity;
+      `
+
+    shader.fragmentShader = insertBeforeString(shader.fragmentShader, 'uniform vec3 diffuse;', fragUniforms)
+
+    shader.fragmentShader = insertAfterString(
+      shader.fragmentShader,
+      'vec4 diffuseColor = vec4( diffuse, opacity );',
+      `if(vSelectedBone > 0.0){
+          diffuseColor.a = opacity * boneOpacity;
+      }
+      `
+    )
+
+    material.userData.shader = shader
+  }
 }

@@ -1,6 +1,8 @@
 import assert from 'assert'
 import { createTicket, deleteTicket, getTicket, getTicketsAssignment } from '../src/functions'
 import { OpenMatchTicket } from '../src/interfaces'
+import AbortController from 'abort-controller'
+import { waitForTicketAssignment } from './helpers'
 
 const testGameMode = 'tournament'
 
@@ -40,6 +42,15 @@ describe.skip('open-match frontend service', () => {
     assert(!ticket?.id)
   })
 
+  it('throws 404 on reading assignment of not existing ticket', async function () {
+    try {
+      const a = await getTicketsAssignment('not-a-ticket' + Math.random())
+      assert(!a)
+    } catch (e) {
+      assert(e && e.message.match(/^Ticket id: .* not found$/))
+    }
+  })
+
   it('sets assignment', async function () {
     // @ts-ignore
     this.timeout(6000)
@@ -52,9 +63,14 @@ describe.skip('open-match frontend service', () => {
     const tickets = await Promise.all(ticketsPromises)
 
     // 2. get assignments promises
+    const abortController = new AbortController()
     const assignmentsPromises = tickets.map((ticket) => {
       assert(ticket.id)
-      return getTicketsAssignment(ticket.id)
+
+      return waitForTicketAssignment(ticket.id!, abortController.signal, 100).then((a) => {
+        console.log('assignment for ', ticket.id, a?.connection)
+        return a
+      })
     })
 
     // 3. wait for any first assignment

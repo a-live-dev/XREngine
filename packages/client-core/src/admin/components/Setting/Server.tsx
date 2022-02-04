@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from 'react'
-import { useStyles } from './styles'
+import { Icon } from '@iconify/react'
+import ExpandLess from '@mui/icons-material/ExpandLess'
+import ExpandMore from '@mui/icons-material/ExpandMore'
+import { Button, Grid, Paper, Typography } from '@mui/material'
+import Collapse from '@mui/material/Collapse'
+import IconButton from '@mui/material/IconButton'
+import InputBase from '@mui/material/InputBase'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
-import Collapse from '@mui/material/Collapse'
-import ExpandLess from '@mui/icons-material/ExpandLess'
-import ExpandMore from '@mui/icons-material/ExpandMore'
 import Switch from '@mui/material/Switch'
-import { Grid, Paper, Button, Typography } from '@mui/material'
-import InputBase from '@mui/material/InputBase'
-import IconButton from '@mui/material/IconButton'
-import { Icon } from '@iconify/react'
-import { useServerSettingState } from '../../services/Setting/ServerSettingService'
-import { ServerSettingService } from '../../services/Setting/ServerSettingService'
+import React, { useEffect, useState } from 'react'
 import { useAuthState } from '../../../user/services/AuthService'
+import { ServerSettingService, useServerSettingState } from '../../services/Setting/ServerSettingService'
+import { useStyles } from './styles'
 
 interface serverProps {
   fetchServerSettings?: any
@@ -27,17 +26,15 @@ const Server = (props: serverProps) => {
   const [serverSetting] = serverSettingState?.server?.value || []
   const id = serverSetting?.id
   const [gaTrackingId, setGaTrackingId] = useState(serverSetting?.gaTrackingId)
+  const [gitPem, setGitPem] = useState(serverSetting?.gitPem)
 
   useEffect(() => {
     if (serverSetting) {
       setGaTrackingId(serverSetting?.gaTrackingId)
+      setGitPem(serverSetting?.gitPem)
     }
   }, [serverSettingState?.updateNeeded?.value])
 
-  const [enabled, setEnabled] = useState({
-    checkedA: true,
-    checkedB: true
-  })
   const [dryRun, setDryRun] = useState({
     checkedA: true,
     checkedB: true
@@ -56,10 +53,6 @@ const Server = (props: serverProps) => {
     setOpenPginate(!openPaginate)
   }
 
-  const handleEnable = (event) => {
-    setEnabled({ ...enabled, [event.target.name]: event.target.checked })
-  }
-
   const handleDryRun = (event) => {
     setDryRun({ ...dryRun, [event.target.name]: event.target.checked })
   }
@@ -70,11 +63,12 @@ const Server = (props: serverProps) => {
 
   const handleSave = (event) => {
     event.preventDefault()
-    ServerSettingService.patchServerSetting({ gaTrackingId: gaTrackingId }, id)
+    ServerSettingService.patchServerSetting({ gaTrackingId: gaTrackingId, gitPem: gitPem }, id)
   }
 
   const handleCancel = () => {
     setGaTrackingId(serverSetting?.gaTrackingId)
+    setGitPem(serverSetting?.gitPem)
   }
 
   useEffect(() => {
@@ -90,17 +84,6 @@ const Server = (props: serverProps) => {
       </Typography>
       <Grid container spacing={3} key={serverSetting?.id || ''}>
         <Grid item xs={12} sm={6}>
-          <label>Enabled</label>
-          <Paper component="div" className={classes.createInput}>
-            <Switch
-              disabled
-              checked={enabled.checkedB}
-              onChange={handleEnable}
-              color="primary"
-              name="checkedB"
-              inputProps={{ 'aria-label': 'primary checkbox' }}
-            />
-          </Paper>
           <br />
           <label>Mode</label>
           <Paper component="div" className={classes.createInput}>
@@ -109,7 +92,7 @@ const Server = (props: serverProps) => {
               className={classes.input}
               disabled
               style={{ color: '#fff' }}
-              value={serverSetting?.serverMode || 'test'}
+              value={serverSetting?.mode || 'test'}
             />
           </Paper>
           <label> Host Name</label>
@@ -119,7 +102,7 @@ const Server = (props: serverProps) => {
               className={classes.input}
               disabled
               style={{ color: '#fff' }}
-              value={serverSetting?.hostName || 'test'}
+              value={serverSetting?.hostname || 'test'}
             />
           </Paper>
           <label>Port</label>
@@ -149,7 +132,7 @@ const Server = (props: serverProps) => {
               className={classes.input}
               disabled
               style={{ color: '#fff' }}
-              value={serverSetting?.rootDirectory || ''}
+              value={serverSetting?.rootDir || ''}
             />
           </Paper>
           <label>Public Directory</label>
@@ -159,7 +142,7 @@ const Server = (props: serverProps) => {
               className={classes.input}
               disabled
               style={{ color: '#fff' }}
-              value={serverSetting?.publicDirectory || ''}
+              value={serverSetting?.publicDir || ''}
             />
           </Paper>
           <label>Node Modules Directory</label>
@@ -169,7 +152,7 @@ const Server = (props: serverProps) => {
               className={classes.input}
               disabled
               style={{ color: '#fff' }}
-              value={serverSetting?.nodeModulesDirectory || ''}
+              value={serverSetting?.nodeModulesDir || ''}
             />
           </Paper>{' '}
           <label>Local StorageProvider </label>
@@ -279,6 +262,16 @@ const Server = (props: serverProps) => {
               value={serverSetting?.keyPath || ''}
             />
           </Paper>
+          <label> Github Private Key </label>
+          <Paper component="div" className={classes.createInput}>
+            <InputBase
+              name="GithubPrivateKey"
+              className={classes.input}
+              style={{ color: '#fff' }}
+              value={gitPem || ''}
+              onChange={(e) => setGitPem(e.target.value)}
+            />
+          </Paper>
           <label> Local </label>
           <Paper component="div" className={classes.createInput}>
             <Switch
@@ -302,11 +295,11 @@ const Server = (props: serverProps) => {
           </Paper>
         </Grid>
       </Grid>
-      <Button variant="outlined" style={{ color: '#fff' }} onClick={handleCancel}>
+      <Button sx={{ maxWidth: '100%' }} variant="outlined" style={{ color: '#fff' }} onClick={handleCancel}>
         Cancel
       </Button>
       &nbsp; &nbsp;
-      <Button variant="contained" type="submit">
+      <Button sx={{ maxWidth: '100%' }} variant="contained" type="submit">
         Save
       </Button>
     </form>

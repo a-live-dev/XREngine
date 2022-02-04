@@ -9,7 +9,6 @@ import { TransformComponent } from '../../transform/components/TransformComponen
 import { EquipperComponent } from '../components/EquipperComponent'
 import { ColliderComponent } from '../../physics/components/ColliderComponent'
 import { getHandTransform } from '../../xr/functions/WebXRFunctions'
-import { System } from '../../ecs/classes/System'
 import { World } from '../../ecs/classes/World'
 import { NetworkWorldAction } from '../../networking/functions/NetworkWorldAction'
 import matches from 'ts-matches'
@@ -46,23 +45,45 @@ function equippableActionReceptor(action) {
   })
 }
 
+export function equippableQueryEnter(entity) {
+  const equipperComponent = getComponent(entity, EquipperComponent)
+  if (equipperComponent) {
+    const equippedEntity = getComponent(entity, EquipperComponent).equippedEntity
+    const collider = getComponent(equippedEntity, ColliderComponent)
+    if (collider) {
+      let phsyxRigidbody = collider.body as PhysX.PxRigidBody
+      useWorld().physics.changeRigidbodyType(phsyxRigidbody, BodyType.KINEMATIC)
+    }
+  }
+}
+
+export function equippableQueryExit(entity) {
+  const equipperComponent = getComponent(entity, EquipperComponent, true)
+  const equippedEntity = equipperComponent.equippedEntity
+
+  const equippedTransform = getComponent(equippedEntity, TransformComponent)
+  const collider = getComponent(equippedEntity, ColliderComponent)
+  if (collider) {
+    let phsyxRigidbody = collider.body as PhysX.PxRigidBody
+    useWorld().physics.changeRigidbodyType(phsyxRigidbody, BodyType.DYNAMIC)
+    teleportRigidbody(collider.body, equippedTransform.position, equippedTransform.rotation)
+  }
+
+  removeComponent(equippedEntity, EquippedComponent)
+}
+
 /**
  * @author Josh Field <github.com/HexaField>
+ * @author Hamza Mushtaq <github.com/hamzzam>
  */
-export default async function EquippableSystem(world: World): Promise<System> {
+export default async function EquippableSystem(world: World) {
   world.receptors.push(equippableActionReceptor)
 
-  // const networkUserQuery = defineQuery([Not(LocalInputTagComponent), AvatarComponent, TransformComponent])
   const equippableQuery = defineQuery([EquipperComponent])
 
   return () => {
     for (const entity of equippableQuery.enter()) {
-      const equippedEntity = getComponent(entity, EquipperComponent).equippedEntity
-      const collider = getComponent(equippedEntity, ColliderComponent)
-      if (collider) {
-        let phsyxRigidbody = collider.body as PhysX.PxRigidBody
-        useWorld().physics.changeRigidbodyType(phsyxRigidbody, BodyType.KINEMATIC)
-      }
+      equippableQueryEnter(entity)
     }
 
     for (const entity of equippableQuery()) {
@@ -89,18 +110,7 @@ export default async function EquippableSystem(world: World): Promise<System> {
     }
 
     for (const entity of equippableQuery.exit()) {
-      const equipperComponent = getComponent(entity, EquipperComponent, true)
-      const equippedEntity = equipperComponent.equippedEntity
-
-      const equippedTransform = getComponent(equippedEntity, TransformComponent)
-      const collider = getComponent(equippedEntity, ColliderComponent)
-      if (collider) {
-        let phsyxRigidbody = collider.body as PhysX.PxRigidBody
-        useWorld().physics.changeRigidbodyType(phsyxRigidbody, BodyType.DYNAMIC)
-        teleportRigidbody(collider.body, equippedTransform.position, equippedTransform.rotation)
-      }
-
-      removeComponent(equippedEntity, EquippedComponent)
+      equippableQueryExit(entity)
     }
   }
 }

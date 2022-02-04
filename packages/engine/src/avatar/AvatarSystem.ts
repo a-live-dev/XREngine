@@ -1,4 +1,4 @@
-import { Camera, Group, Quaternion, Vector3 } from 'three'
+import { Group, Quaternion, Vector3 } from 'three'
 import {
   addComponent,
   defineQuery,
@@ -13,12 +13,9 @@ import { AvatarComponent } from './components/AvatarComponent'
 import { AvatarControllerComponent } from './components/AvatarControllerComponent'
 import { XRInputSourceComponent } from '../xr/components/XRInputSourceComponent'
 import { NetworkWorldAction } from '../networking/functions/NetworkWorldAction'
-import { ColliderComponent } from '../physics/components/ColliderComponent'
 import { World } from '../ecs/classes/World'
-import { System } from '../ecs/classes/System'
 import matches from 'ts-matches'
 import { useWorld } from '../ecs/functions/SystemHooks'
-import { teleportRigidbody } from '../physics/functions/teleportRigidbody'
 import { VelocityComponent } from '../physics/components/VelocityComponent'
 import { XRHandsInputComponent } from '../xr/components/XRHandsInputComponent'
 import { Engine } from '../ecs/classes/Engine'
@@ -29,20 +26,19 @@ import { CameraIKComponent } from '../ikrig/components/CameraIKComponent'
 import { isEntityLocalClient } from '../networking/functions/isEntityLocalClient'
 import { isClient } from '../common/functions/isClient'
 import { loadAvatarForEntity } from './functions/avatarFunctions'
+import { detectUserInCollisions } from './functions/detectUserInCollisions'
 
 function avatarActionReceptor(action) {
   const world = useWorld()
 
   matches(action)
     .when(NetworkWorldAction.avatarDetails.matches, ({ $from, avatarDetail }) => {
-      const client = world.clients.get($from)!
+      const client = world.clients.get($from)
+      if (!client) throw Error(`Avatar details action received for a client that does not exist: ${$from}`)
       if (client.avatarDetail?.avatarURL === avatarDetail.avatarURL) return
       if (isClient) {
         const entity = world.getUserAvatarEntity($from)
-        // if(entity)
         loadAvatarForEntity(entity, avatarDetail)
-        // else
-        //   console.warn('avatarDetails receptor tried to set the avatar of a user that does not exist' + $from)
       }
     })
 
@@ -88,15 +84,7 @@ function avatarActionReceptor(action) {
 
     .when(NetworkWorldAction.teleportObject.matches, (a) => {
       const [x, y, z, qX, qY, qZ, qW] = a.pose
-
       const entity = world.getNetworkObject(a.object.ownerId, a.object.networkId)
-
-      const colliderComponent = getComponent(entity, ColliderComponent)
-      if (colliderComponent) {
-        teleportRigidbody(colliderComponent.body, new Vector3(x, y, z), new Quaternion(qX, qY, qZ, qW))
-        return
-      }
-
       const controllerComponent = getComponent(entity, AvatarControllerComponent)
       if (controllerComponent) {
         const velocity = getComponent(entity, VelocityComponent)
@@ -107,7 +95,7 @@ function avatarActionReceptor(action) {
     })
 }
 
-export default async function AvatarSystem(world: World): Promise<System> {
+export default async function AvatarSystem(world: World) {
   world.receptors.push(avatarActionReceptor)
 
   const rotate180onY = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI)
@@ -123,6 +111,7 @@ export default async function AvatarSystem(world: World): Promise<System> {
       const xrInputSourceComponent = getComponent(entity, XRInputSourceComponent)
       const object3DComponent = getComponent(entity, Object3DComponent)
 
+      // todo: make isomorphic
       xrInputSourceComponent.container.add(
         xrInputSourceComponent.controllerLeft.parent || xrInputSourceComponent.controllerLeft,
         xrInputSourceComponent.controllerGripLeft.parent || xrInputSourceComponent.controllerGripLeft,
@@ -165,6 +154,7 @@ export default async function AvatarSystem(world: World): Promise<System> {
       const avatar = getComponent(entity, AvatarComponent)
       raycastComponent.origin.copy(transform.position).y += avatar.avatarHalfHeight
       avatar.isGrounded = Boolean(raycastComponent.hits.length > 0)
+      detectUserInCollisions(entity)
     }
 
     for (const entity of xrLGripQuery.enter()) {
