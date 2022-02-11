@@ -25,6 +25,7 @@ import _ from 'lodash'
 import { v4 as uuidv4 } from 'uuid'
 import { useFetchAdminInstance } from '../../common/hooks/Instance.hooks'
 import { useFetchAdminLocations } from '../../common/hooks/Location.hooks'
+import { CreateBotAsAdmin } from '@xrengine/common/src/interfaces/AdminBot'
 
 interface Props {}
 interface Menu {
@@ -97,9 +98,8 @@ const CreateBot = (props: Props) => {
     setOpen(false)
   }
 
-  const data: Instance[] = []
-  instanceData.value.forEach((element) => {
-    data.push(element)
+  const data: Instance[] = instanceData.value.map((element) => {
+    return element
   })
 
   useEffect(() => {
@@ -113,7 +113,7 @@ const CreateBot = (props: Props) => {
   }, [state.location, adminInstanceState.instances.value.length])
 
   const handleSubmit = () => {
-    const data = {
+    const data: CreateBotAsAdmin = {
       name: state.name,
       instanceId: state.instance || null,
       userId: user.id.value,
@@ -166,20 +166,18 @@ const CreateBot = (props: Props) => {
     setState({ ...state, [names]: value })
   }
 
-  const locationMenu: Menu[] = []
-  locationData.value.forEach((el) => {
-    locationMenu.push({
+  const locationMenu: Menu[] = locationData.value.map((el) => {
+    return {
       value: el.id,
       label: el.name
-    })
+    }
   })
 
-  const instanceMenu: Menu[] = []
-  currentInstance.forEach((el) => {
-    instanceMenu.push({
+  const instanceMenu: Menu[] = currentInstance.map((el) => {
+    return {
       value: el.id,
       label: el.ipAddress
-    })
+    }
   })
 
   return (

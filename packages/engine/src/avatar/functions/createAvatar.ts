@@ -39,15 +39,17 @@ export const createAvatar = (spawnAction: typeof NetworkWorldAction.spawnAvatar.
   const entity = world.getNetworkObject(spawnAction.$from, spawnAction.networkId)
 
   const position = createVector3Proxy(TransformComponent.position, entity)
-
   const rotation = createQuaternionProxy(TransformComponent.rotation, entity)
-  // todo: figure out why scale makes avatar disappear
-  // const scale = createVector3Proxy(TransformComponent.scale, entity)
-  const scale = new Vector3().copy(new Vector3(1, 1, 1))
+  const scale = createVector3Proxy(TransformComponent.scale, entity)
 
   const transform = addComponent(entity, TransformComponent, { position, rotation, scale })
   transform.position.copy(spawnAction.parameters.position)
   transform.rotation.copy(spawnAction.parameters.rotation)
+  transform.scale.copy(new Vector3(1, 1, 1))
+
+  // set cached action refs to the new components so they stay up to date with future movements
+  spawnAction.parameters.position = position
+  spawnAction.parameters.rotation = rotation
 
   const velocity = createVector3Proxy(VelocityComponent.velocity, entity)
 
@@ -66,7 +68,6 @@ export const createAvatar = (spawnAction: typeof NetworkWorldAction.spawnAvatar.
   tiltContainer.add(modelContainer)
 
   addComponent(entity, AvatarComponent, {
-    ...world.clients.get(userId)?.avatarDetail,
     avatarHalfHeight: defaultAvatarHalfHeight,
     avatarHeight: defaultAvatarHeight,
     modelContainer,
@@ -76,7 +77,6 @@ export const createAvatar = (spawnAction: typeof NetworkWorldAction.spawnAvatar.
   addComponent(entity, NameComponent, {
     name: userId as string
   })
-  console.log('userID: ' + userId)
 
   addComponent(entity, AnimationComponent, {
     mixer: new AnimationMixer(modelContainer),
@@ -176,7 +176,6 @@ export const createAvatarController = (entity: Entity) => {
       entity
     }
   }) as PhysX.PxCapsuleController
-  console.log(controller.getPosition())
 
   const frustumCamera = new PerspectiveCamera(60, 2, 0.1, 3)
   frustumCamera.position.setY(defaultAvatarHalfHeight)
