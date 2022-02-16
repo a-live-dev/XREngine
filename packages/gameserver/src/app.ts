@@ -92,7 +92,8 @@ export const createApp = (): Application => {
             origin: [
               'https://' + config.gameserver.clientHost,
               'capacitor://' + config.gameserver.clientHost,
-              'ionic://' + config.gameserver.clientHost
+              'ionic://' + config.gameserver.clientHost,
+              'http://' + config.gameserver.clientHost
             ],
             methods: ['OPTIONS', 'GET', 'POST'],
             allowedHeaders: '*',

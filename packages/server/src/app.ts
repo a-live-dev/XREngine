@@ -91,7 +91,8 @@ try {
             'https://' + config.server.clientHost,
             'capacitor://' + config.server.clientHost,
             'ionic://' + config.server.clientHost,
-            'https://localhost:3001'
+            'https://localhost:3001',
+            'http://' + config.server.clientHost
           ],
           methods: ['OPTIONS', 'GET', 'POST'],
           allowedHeaders: '*',

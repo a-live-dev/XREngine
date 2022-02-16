@@ -5,10 +5,10 @@ import feathers from '@feathersjs/client'
 const feathersClient = feathers() // as Application
 const serverHost =
   process.env.APP_ENV === 'development' || process.env['VITE_LOCAL_BUILD'] === 'true'
-    ? `https://${(globalThis as any).process.env['VITE_SERVER_HOST']}:${
+    ? `http://${(globalThis as any).process.env['VITE_SERVER_HOST']}:${
         (globalThis as any).process.env['VITE_SERVER_PORT']
       }`
-    : `https://${(globalThis as any).process.env['VITE_SERVER_HOST']}`
+    : `http://${(globalThis as any).process.env['VITE_SERVER_HOST']}`
 
 const socket = io(serverHost, {
   withCredentials: true
