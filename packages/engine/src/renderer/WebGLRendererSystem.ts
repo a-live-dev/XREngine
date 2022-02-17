@@ -11,9 +11,17 @@ import {
   SSAOEffect,
   ToneMappingEffect
 } from 'postprocessing'
-import { PerspectiveCamera, sRGBEncoding, WebGL1Renderer, WebGLRenderer, WebGLRenderTarget } from 'three'
+import {
+  PerspectiveCamera,
+  sRGBEncoding,
+  WebGL1Renderer,
+  WebGLRenderer,
+  WebGLRendererParameters,
+  WebGLRenderTarget
+} from 'three'
 import { ClientStorage } from '../common/classes/ClientStorage'
 import { nowMilliseconds } from '../common/functions/nowMilliseconds'
+import { isIOS } from '@xrengine/common/src/utils/isIOS'
 import { Engine } from '../ecs/classes/Engine'
 import { EngineEvents } from '../ecs/classes/EngineEvents'
 import WebGL from './THREE.WebGL'
@@ -26,6 +34,7 @@ import { accessEngineState, EngineActions, EngineActionType } from '../ecs/class
 import { accessEngineRendererState, EngineRendererAction, EngineRendererReceptor } from './EngineRendererState'
 import { databasePrefix, RENDERER_SETTINGS } from './EngineRnedererConstants'
 import { ExponentialMovingAverage } from '../common/classes/ExponentialAverageCurve'
+import { receiveActionOnce } from '../networking/functions/matchActionOnce'
 
 export interface EffectComposerWithSchema extends EffectComposer {
   // TODO: 'postprocessing' needs typing, we could create a '@types/postprocessing' package?
@@ -111,19 +120,20 @@ export class EngineRenderer {
     }
 
     const canvas: HTMLCanvasElement = document.querySelector('canvas')!
-    const context = this.supportWebGL2 ? canvas.getContext('webgl2') : canvas.getContext('webgl')
+    const context = this.supportWebGL2 ? canvas.getContext('webgl2')! : canvas.getContext('webgl')!
 
     if (!context) {
       dispatchLocal(
         EngineActions.browserNotSupported(
-          'Your brower does not support webgl,or it disable webgl,Please enable webgl'
+          'Your browser does not have WebGL enabled. Please enable WebGL, or try another browser.'
         ) as any
       )
     }
 
     this.renderContext = context!
-    const options: any = {
-      powerPreference: 'high-performance',
+    const options: WebGLRendererParameters = {
+      precision: 'highp',
+      powerPreference: isIOS() ? 'default' : 'high-performance',
       canvas,
       context,
       antialias: !Engine.isHMD,
@@ -268,7 +278,7 @@ export class EngineRenderer {
 export default async function WebGLRendererSystem(world: World) {
   new EngineRenderer()
 
-  await EngineRenderer.instance.loadGraphicsSettingsFromStorage()
+  receiveActionOnce(EngineEvents.EVENTS.JOINED_WORLD, () => EngineRenderer.instance.loadGraphicsSettingsFromStorage())
   world.receptors.push(EngineRendererReceptor)
 
   return () => {
